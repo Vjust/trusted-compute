@@ -1,0 +1,10 @@
+[package]
+name = "random_example"
+edition = "2024.beta"
+
+[dependencies]
+Sui = { git = "https://github.com/MystenLabs/sui.git", subdir = "crates/sui-framework/packages/sui-framework", rev = "83d8d389a1054f05268f10ee2d00a76f94fd89e7" }
+enclave = { local = "../enclave" }
+
+[addresses]
+app = "0x0"
