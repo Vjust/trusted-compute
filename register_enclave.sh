@@ -26,7 +26,7 @@ if [ ${#ATTESTATION_HEX} -eq 0 ]; then
 fi
 
 # Convert hex to array using Python
-ATTESTATION_ARRAY=$(python3 - <<EOF
+ATTESTATION_ARRAY=$(python - <<EOF
 import sys
 
 def hex_to_vector(hex_string):
