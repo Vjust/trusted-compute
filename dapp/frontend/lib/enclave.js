@@ -1,4 +1,4 @@
-import { TransactionBlock } from '@mysten/sui'
+// import { TransactionBlock } from '@mysten/sui'
 
 /**
  * Request a random number from the enclave
@@ -8,21 +8,14 @@ import { TransactionBlock } from '@mysten/sui'
  * @returns {Promise<Object>} Response from enclave with signed random number
  */
 export async function requestRandomNumber(min, max, enclaveUrl) {
-  const url = `${enclaveUrl}/process_data`
   
-  const response = await fetch(url, {
+  const response = await fetch('/process_data', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      payload: {
-        min,
-        max,
-      },
+      payload: { min, max } 
     }),
-  })
-
+  });
   if (!response.ok) {
     const errorText = await response.text()
     throw new Error(`Enclave request failed: ${response.status} ${errorText}`)
@@ -67,52 +60,52 @@ function hexToBytes(hexString) {
  * @param {string} signature - Hex signature from enclave
  * @param {string} senderAddress - Address of the transaction sender
  */
-export async function submitRandomToChain(
-  signAndExecuteTransactionBlock,
-  appPackageId,
-  moduleName,
-  otwName,
-  enclaveObjectId,
-  randomNumber,
-  min,
-  max,
-  timestampMs,
-  signature,
-  senderAddress
-) {
-  // Convert signature hex to bytes (as array for TransactionBlock compatibility)
-  const sigBytes = Array.from(hexToBytes(signature))
+// export async function submitRandomToChain(
+//   signAndExecuteTransactionBlock,
+//   appPackageId,
+//   moduleName,
+//   otwName,
+//   enclaveObjectId,
+//   randomNumber,
+//   min,
+//   max,
+//   timestampMs,
+//   signature,
+//   senderAddress
+// ) {
+//   // Convert signature hex to bytes (as array for TransactionBlock compatibility)
+//   const sigBytes = Array.from(hexToBytes(signature))
 
-  // Create transaction block
-  const txb = new TransactionBlock()
+//   // Create transaction block
+//   const txb = new TransactionBlock()
   
-  // Build the move call
-  // submit_random<T>(random_number, min, max, timestamp_ms, sig, enclave, ctx)
-  const [nft] = txb.moveCall({
-    target: `${appPackageId}::${moduleName}::submit_random`,
-    typeArguments: [`${appPackageId}::${moduleName}::${otwName}`],
-    arguments: [
-      txb.pure.u64(randomNumber),
-      txb.pure.u64(min),
-      txb.pure.u64(max),
-      txb.pure.u64(timestampMs),
-      txb.pure(sigBytes), // vector<u8> - array of bytes
-      txb.object(enclaveObjectId),
-    ],
-  })
+//   // Build the move call
+//   // submit_random<T>(random_number, min, max, timestamp_ms, sig, enclave, ctx)
+//   const [nft] = txb.moveCall({
+//     target: `${appPackageId}::${moduleName}::submit_random`,
+//     typeArguments: [`${appPackageId}::${moduleName}::${otwName}`],
+//     arguments: [
+//       txb.pure.u64(randomNumber),
+//       txb.pure.u64(min),
+//       txb.pure.u64(max),
+//       txb.pure.u64(timestampMs),
+//       txb.pure(sigBytes), // vector<u8> - array of bytes
+//       txb.object(enclaveObjectId),
+//     ],
+//   })
 
-  // Transfer the NFT to the sender
-  txb.transferObjects([nft], senderAddress)
+//   // Transfer the NFT to the sender
+//   txb.transferObjects([nft], senderAddress)
 
-  // Execute the transaction
-  const result = await signAndExecuteTransactionBlock({
-    transactionBlock: txb,
-    options: {
-      showEffects: true,
-      showObjectChanges: true,
-    },
-  })
+//   // Execute the transaction
+//   const result = await signAndExecuteTransactionBlock({
+//     transactionBlock: txb,
+//     options: {
+//       showEffects: true,
+//       showObjectChanges: true,
+//     },
+//   })
 
-  return result
-}
+//   return result
+// }
 
