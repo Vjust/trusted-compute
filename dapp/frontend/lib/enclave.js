@@ -1,4 +1,4 @@
-// import { TransactionBlock } from '@mysten/sui'
+import { TransactionBlock } from '@mysten/sui.js/transactions';
 
 /**
  * Request a random number from the enclave
@@ -60,52 +60,64 @@ function hexToBytes(hexString) {
  * @param {string} signature - Hex signature from enclave
  * @param {string} senderAddress - Address of the transaction sender
  */
-// export async function submitRandomToChain(
-//   signAndExecuteTransactionBlock,
-//   appPackageId,
-//   moduleName,
-//   otwName,
-//   enclaveObjectId,
-//   randomNumber,
-//   min,
-//   max,
-//   timestampMs,
-//   signature,
-//   senderAddress
-// ) {
-//   // Convert signature hex to bytes (as array for TransactionBlock compatibility)
-//   const sigBytes = Array.from(hexToBytes(signature))
+export async function submitRandomToChain(
+  signAndExecuteTransactionBlock,
+  appPackageId,
+  moduleName,
+  otwName,
+  enclaveObjectId,
+  randomNumber,
+  min,
+  max,
+  timestampMs,
+  signature,
+  senderAddress
+) {
+  // Convert signature hex to bytes (as array for TransactionBlock compatibility)
+  const sigBytes = Array.from(hexToBytes(signature))
 
-//   // Create transaction block
-//   const txb = new TransactionBlock()
+  // Ensure all numeric values are actually numbers (not strings)
+  const randomNum = Number(randomNumber)
+  const minNum = Number(min)
+  const maxNum = Number(max)
+  const timestampNum = Number(timestampMs)
+
+  // Validate conversions
+  if (!Number.isFinite(randomNum) || !Number.isFinite(minNum) || 
+      !Number.isFinite(maxNum) || !Number.isFinite(timestampNum)) {
+    throw new Error('Invalid numeric values in payload')
+  }
+
+  // Create transaction block
+  const txb = new TransactionBlock()
   
-//   // Build the move call
-//   // submit_random<T>(random_number, min, max, timestamp_ms, sig, enclave, ctx)
-//   const [nft] = txb.moveCall({
-//     target: `${appPackageId}::${moduleName}::submit_random`,
-//     typeArguments: [`${appPackageId}::${moduleName}::${otwName}`],
-//     arguments: [
-//       txb.pure.u64(randomNumber),
-//       txb.pure.u64(min),
-//       txb.pure.u64(max),
-//       txb.pure.u64(timestampMs),
-//       txb.pure(sigBytes), // vector<u8> - array of bytes
-//       txb.object(enclaveObjectId),
-//     ],
-//   })
+  // Build the move call
+  // submit_random<T>(random_number, min, max, timestamp_ms, sig, enclave, ctx)
+  const [nft] = txb.moveCall({
+    target: `${appPackageId}::${moduleName}::submit_random`,
+    typeArguments: [`${appPackageId}::${moduleName}::${otwName}`],
+    arguments: [
+      txb.pure.u64(randomNum),
+      txb.pure.u64(minNum),
+      txb.pure.u64(maxNum),
+      txb.pure.u64(timestampNum),
+      txb.pure(sigBytes), // vector<u8> - array of bytes
+      txb.object(enclaveObjectId),
+    ],
+  })
 
-//   // Transfer the NFT to the sender
-//   txb.transferObjects([nft], senderAddress)
+  // Transfer the NFT to the sender
+  txb.transferObjects([nft], senderAddress)
 
-//   // Execute the transaction
-//   const result = await signAndExecuteTransactionBlock({
-//     transactionBlock: txb,
-//     options: {
-//       showEffects: true,
-//       showObjectChanges: true,
-//     },
-//   })
+  // Execute the transaction
+  const result = await signAndExecuteTransactionBlock({
+    transactionBlock: txb,
+    options: {
+      showEffects: true,
+      showObjectChanges: true,
+    },
+  })
 
-//   return result
-// }
+  return result
+}
 

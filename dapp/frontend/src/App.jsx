@@ -2,25 +2,25 @@ import { useCallback, useMemo, useState } from 'react'
 import {
   ConnectButton,
   // useCurrentAccount,
-  useWalletKit,
+  useWalletKit 
 } from '@mysten/wallet-kit'
 
 import './App.css'
 import {
   requestRandomNumber,
-  // submitRandomToChain,
+  submitRandomToChain,
 } from '../lib/enclave.js'
 
 const getEnv = (key, fallback = '') =>
   import.meta.env?.[key] ? String(import.meta.env[key]).trim() : fallback
 
 function App() {
-  // const currentAccount = useCurrentAccount()
-  const { signAndExecuteTransactionBlock } = useWalletKit()
+  const { currentAccount } = useWalletKit();
+  const { signAndExecuteTransactionBlock } = useWalletKit();
 
   const defaultConfig = useMemo(
     () => ({
-      enclaveUrl: getEnv('VITE_ENCLAVE_URL', 'http://localhost:3000'),
+      enclaveUrl: getEnv('VITE_ENCLAVE_URL', 'http://98.94.158.206:3000'),
       appPackageId: getEnv('VITE_APP_PACKAGE_ID'),
       moduleName: getEnv('VITE_MODULE_NAME', 'random'),
       otwName: getEnv('VITE_OTW_NAME', 'RANDOM'),
@@ -146,69 +146,69 @@ function App() {
     [config.enclaveUrl, ensureEnclaveUrl, validateRange]
   )
 
-  // const handleSubmitToChain = useCallback(async () => {
-  //   if (!currentAccount) {
-  //     setAlert({
-  //       type: 'error',
-  //       message: 'Connect a Sui wallet to submit the proof on-chain.',
-  //     })
-  //     return
-  //   }
+  const handleSubmitToChain = useCallback(async () => {
+    if (!currentAccount) {
+      setAlert({
+        type: 'error',
+        message: 'Connect a Sui wallet to submit the proof on-chain.',
+      })
+      return
+    }
 
-  //   if (!enclaveResponse || !randomPayload || !signature || !timestampMs) {
-  //     setAlert({
-  //       type: 'error',
-  //       message: 'Request a random number before submitting to chain.',
-  //     })
-  //     return
-  //   }
+    if (!enclaveResponse || !randomPayload || !signature || !timestampMs) {
+      setAlert({
+        type: 'error',
+        message: 'Request a random number before submitting to chain.',
+      })
+      return
+    }
 
-  //   try {
-  //     requireOnChainConfig()
-  //     setIsSubmitting(true)
-  //     setAlert(null)
+    try {
+      requireOnChainConfig()
+      setIsSubmitting(true)
+      setAlert(null)
 
-  //     const result = await submitRandomToChain(
-  //       signAndExecuteTransactionBlock,
-  //       config.appPackageId.trim(),
-  //       config.moduleName.trim(),
-  //       config.otwName.trim(),
-  //       config.enclaveObjectId.trim(),
-  //       randomPayload.random_number,
-  //       randomPayload.min,
-  //       randomPayload.max,
-  //       timestampMs,
-  //       signature,
-  //       currentAccount.address
-  //     )
+      const result = await submitRandomToChain(
+        signAndExecuteTransactionBlock,
+        config.appPackageId.trim(),
+        config.moduleName.trim(),
+        config.otwName.trim(),
+        config.enclaveObjectId.trim(),
+        Number(randomPayload.random_number),
+        Number(randomPayload.min),
+        Number(randomPayload.max),
+        Number(timestampMs),
+        signature,
+        currentAccount.address
+      )
 
-  //     setTxResult(result)
-  //     setAlert({
-  //       type: 'success',
-  //       message: `Transaction submitted. Digest: ${result.digest}`,
-  //     })
-  //   } catch (error) {
-  //     console.error(error)
-  //     setAlert({
-  //       type: 'error',
-  //       message: error.message || 'Failed to submit transaction',
-  //     })
-  //   } finally {
-  //     setIsSubmitting(false)
-  //   }
-  // }, [
-  //   config.appPackageId,
-  //   config.enclaveObjectId,
-  //   config.moduleName,
-  //   config.otwName,
-  //   currentAccount,
-  //   enclaveResponse,
-  //   randomPayload,
-  //   requireOnChainConfig,
-  //   signature,
-  //   signAndExecuteTransactionBlock,
-  //   timestampMs,
-  // ])
+      setTxResult(result)
+      setAlert({
+        type: 'success',
+        message: `Transaction submitted. Digest: ${result.digest}`,
+      })
+    } catch (error) {
+      console.error(error)
+      setAlert({
+        type: 'error',
+        message: error.message || 'Failed to submit transaction',
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }, [
+    config.appPackageId,
+    config.enclaveObjectId,
+    config.moduleName,
+    config.otwName,
+    currentAccount,
+    enclaveResponse,
+    randomPayload,
+    requireOnChainConfig,
+    signature,
+    signAndExecuteTransactionBlock,
+    timestampMs,
+  ])
 
   const formatAddress = (address) =>
     address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''
@@ -238,13 +238,9 @@ function App() {
             <form className="form-grid" onSubmit={handleRequestRandom}>
               <label>
                 Enclave URL
-                <input
-                  type="url"
-                  value={config.enclaveUrl}
-                  onChange={handleConfigChange('enclaveUrl')}
-                  placeholder="http://127.0.0.1:3000"
-                  required
-                />
+                <div className="display-field">
+                  {config.enclaveUrl || 'http://98.94.158.206:3000'}
+                </div>
               </label>
               <label>
                 App Package ID
@@ -327,9 +323,9 @@ function App() {
             <div className="status-block">
               <p>
                 <strong>Wallet:</strong>{' '}
-                {/* {currentAccount
+                {currentAccount
                   ? formatAddress(currentAccount.address)
-                  : 'Not connected'} */}
+                  : 'Not connected'}
               </p>
               <p>
                 <strong>Status:</strong>{' '}
@@ -371,10 +367,10 @@ function App() {
             <button
               type="button"
               className="secondary-button"
-              // onClick={handleSubmitToChain}
+              onClick={handleSubmitToChain}
               disabled={
                 !randomPayload ||
-                // !currentAccount ||
+                !currentAccount ||
                 isSubmitting ||
                 isRequesting
               }
@@ -388,7 +384,7 @@ function App() {
                   <strong>Transaction Digest:</strong> {txResult.digest}
                 </p>
                 <p>
-                  {/* <strong>NFT Owner:</strong> {formatAddress(currentAccount?.address)} */}
+                  <strong>NFT Owner:</strong> {formatAddress(currentAccount?.address)}
                 </p>
               </div>
             )}
