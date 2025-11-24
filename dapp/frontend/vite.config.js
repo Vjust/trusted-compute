@@ -10,6 +10,7 @@ export default defineConfig({
         target: 'http://98.94.158.206:3000',
         changeOrigin: true,
       },
+      '/get_attestation': { target: 'http://98.94.158.206:3000', changeOrigin: true },
     },
   }
 })

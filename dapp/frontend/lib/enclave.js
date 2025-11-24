@@ -8,8 +8,8 @@ import { TransactionBlock } from '@mysten/sui.js/transactions';
  * @returns {Promise<Object>} Response from enclave with signed random number
  */
 export async function requestRandomNumber(min, max, enclaveUrl) {
-  
-  const response = await fetch('/process_data', {
+
+  const response = await fetch("/process_data", {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -119,5 +119,78 @@ export async function submitRandomToChain(
   })
 
   return result
+}
+
+/**
+ * Register enclave on-chain using attestation from the enclave endpoint.
+ * @param {Function} signAndExecuteTransactionBlock
+ * @param {string} enclavePackageId
+ * @param {string} appPackageId
+ * @param {string} moduleName
+ * @param {string} otwName
+ * @param {string} enclaveConfigId
+ * @param {string} enclaveUrl
+ * @param {string} senderAddress
+ */
+export async function registerEnclaveOnChain(
+  signAndExecuteTransactionBlock,
+  enclavePackageId,
+  appPackageId,
+  moduleName,
+  otwName,
+  enclaveConfigId,
+  enclaveUrl,
+  senderAddress
+) {
+  const baseUrl = enclaveUrl?.trim()
+  if (!baseUrl) {
+    throw new Error('Enclave URL is required to register enclave')
+  }
+
+  const attestationResponse = await fetch('/get_attestation');
+
+  if (!attestationResponse.ok) {
+    const errorText = await attestationResponse.text()
+    throw new Error(`Failed to fetch attestation: ${errorText}`)
+  }
+
+  const { attestation } = await attestationResponse.json()
+  if (!attestation) {
+    throw new Error('Attestation payload missing from enclave response')
+  }
+
+  const attestationBytes = Array.from(hexToBytes(attestation))
+
+  const txb = new TransactionBlock()
+
+  const nitroDoc = txb.moveCall({
+    target: `0x2::nitro_attestation::load_nitro_attestation`,
+    arguments: [txb.pure(attestationBytes), txb.object('0x6')],
+  })
+
+  txb.moveCall({
+    target: `${enclavePackageId}::enclave::register_enclave`,
+    typeArguments: [`${appPackageId}::${moduleName}::${otwName}`],
+    arguments: [txb.object(enclaveConfigId), nitroDoc],
+  })
+
+  const result = await signAndExecuteTransactionBlock({
+    transactionBlock: txb,
+    options: {
+      showEffects: true,
+      showObjectChanges: true,
+    },
+  })
+
+  const createdEnclave = result?.objectChanges?.find(
+    (change) =>
+      change.type === 'created' &&
+      change.objectType?.includes('::enclave::Enclave<')
+  )
+
+  return {
+    result,
+    enclaveObjectId: createdEnclave?.objectId,
+  }
 }
 

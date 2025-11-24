@@ -9,6 +9,7 @@ import './App.css'
 import {
   requestRandomNumber,
   submitRandomToChain,
+  registerEnclaveOnChain,
 } from '../lib/enclave.js'
 
 const getEnv = (key, fallback = '') =>
@@ -21,9 +22,20 @@ function App() {
   const defaultConfig = useMemo(
     () => ({
       enclaveUrl: getEnv('VITE_ENCLAVE_URL', 'http://98.94.158.206:3000'),
-      appPackageId: getEnv('VITE_APP_PACKAGE_ID'),
+      enclavePackageId: getEnv(
+        'VITE_ENCLAVE_PACKAGE_ID',
+        '0xc858da3abc47c089b07e081df5117b7923aac117d32e6691e72b7b69d45ee64a'
+      ),
+      appPackageId: getEnv(
+        'VITE_APP_PACKAGE_ID',
+        '0x934ad4dad7597c57b729e30b427b5b2f8ebd2cb82d538d650253fd194e8a37bd'
+      ),
       moduleName: getEnv('VITE_MODULE_NAME', 'random'),
       otwName: getEnv('VITE_OTW_NAME', 'RANDOM'),
+      enclaveConfigObjectId: getEnv(
+        'VITE_ENCLAVE_CONFIG_OBJECT_ID',
+        '0x2dc00691ceb0f062be3bf521689c0548588ca513a191e7182998fff29b3b2bc7'
+      ),
       enclaveObjectId: getEnv('VITE_ENCLAVE_OBJECT_ID'),
     }),
     []
@@ -40,6 +52,7 @@ function App() {
   const [alert, setAlert] = useState(null)
   const [isRequesting, setIsRequesting] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isRegistering, setIsRegistering] = useState(false)
 
   const randomPayload = enclaveResponse?.response?.data
   const timestampMs = enclaveResponse?.response?.timestamp_ms
@@ -102,6 +115,23 @@ function App() {
     }
 
     ensureEnclaveUrl()
+
+    for (const [field, label] of Object.entries(requiredFields)) {
+      if (!config[field]?.trim()) {
+        throw new Error(`Missing ${label}`)
+      }
+    }
+  }, [config, ensureEnclaveUrl])
+
+  const requireRegisterConfig = useCallback(() => {
+    ensureEnclaveUrl()
+    const requiredFields = {
+      enclavePackageId: 'Enclave package ID',
+      appPackageId: 'App package ID',
+      moduleName: 'Module name',
+      otwName: 'One-time witness name',
+      enclaveConfigObjectId: 'Enclave config object ID',
+    }
 
     for (const [field, label] of Object.entries(requiredFields)) {
       if (!config[field]?.trim()) {
@@ -213,6 +243,68 @@ function App() {
   const formatAddress = (address) =>
     address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''
 
+  const handleRegisterEnclave = useCallback(async () => {
+    if (!currentAccount) {
+      setAlert({
+        type: 'error',
+        message: 'Connect a Sui wallet to register the enclave.',
+      })
+      return
+    }
+
+    try {
+      requireRegisterConfig()
+      setIsRegistering(true)
+      setAlert(null)
+
+      const { enclaveObjectId } = await registerEnclaveOnChain(
+        signAndExecuteTransactionBlock,
+        config.enclavePackageId.trim(),
+        config.appPackageId.trim(),
+        config.moduleName.trim(),
+        config.otwName.trim(),
+        config.enclaveConfigObjectId.trim(),
+        config.enclaveUrl.trim(),
+        currentAccount.address
+      )
+
+      if (enclaveObjectId) {
+        setConfig((prev) => ({
+          ...prev,
+          enclaveObjectId,
+        }))
+        setAlert({
+          type: 'success',
+          message: `Enclave registered. Object ID: ${enclaveObjectId}`,
+        })
+      } else {
+        setAlert({
+          type: 'warning',
+          message:
+            'Enclave registered, but could not automatically detect the object ID. Please check the transaction details.',
+        })
+      }
+    } catch (error) {
+      console.error(error)
+      setAlert({
+        type: 'error',
+        message: error.message || 'Failed to register enclave',
+      })
+    } finally {
+      setIsRegistering(false)
+    }
+  }, [
+    config.appPackageId,
+    config.enclaveConfigObjectId,
+    config.enclavePackageId,
+    config.moduleName,
+    config.otwName,
+    config.enclaveUrl,
+    currentAccount,
+    requireRegisterConfig,
+    signAndExecuteTransactionBlock,
+  ])
+
   return (
     <div className="app">
       <header className="app-header">
@@ -235,6 +327,14 @@ function App() {
         <div className="content-grid">
           <section className="card">
             <h2>Configuration</h2>
+            <div className="config-info">
+              <p>
+                <strong>Module:</strong> {config.moduleName || 'random'}
+              </p>
+              <p>
+                <strong>One-time Witness:</strong> {config.otwName || 'RANDOM'}
+              </p>
+            </div>
             <form className="form-grid" onSubmit={handleRequestRandom}>
               <label>
                 Enclave URL
@@ -243,34 +343,33 @@ function App() {
                 </div>
               </label>
               <label>
+                Enclave Package ID
+                <div className="display-field">
+                  {config.enclavePackageId ||
+                    '0xc858da3abc47c089b07e081df5117b7923aac117d32e6691e72b7b69d45ee64a'}
+                </div>
+              </label>
+              <label>
                 App Package ID
-                <input
-                  type="text"
-                  value={config.appPackageId}
-                  onChange={handleConfigChange('appPackageId')}
-                  placeholder="0x..."
-                  required
-                />
+                <div className="display-field">
+                  {config.appPackageId ||
+                    '0x934ad4dad7597c57b729e30b427b5b2f8ebd2cb82d538d650253fd194e8a37bd'}
+                </div>
               </label>
               <label>
                 Module Name
-                <input
-                  type="text"
-                  value={config.moduleName}
-                  onChange={handleConfigChange('moduleName')}
-                  placeholder="random"
-                  required
-                />
+                <div className="display-field">{config.moduleName || 'random'}</div>
               </label>
               <label>
                 One-time Witness Name
-                <input
-                  type="text"
-                  value={config.otwName}
-                  onChange={handleConfigChange('otwName')}
-                  placeholder="RANDOM"
-                  required
-                />
+                <div className="display-field">{config.otwName || 'RANDOM'}</div>
+              </label>
+              <label>
+                Enclave Config Object ID
+                <div className="display-field">
+                  {config.enclaveConfigObjectId ||
+                    '0x2dc00691ceb0f062be3bf521689c0548588ca513a191e7182998fff29b3b2bc7'}
+                </div>
               </label>
               <label>
                 Enclave Object ID
@@ -314,6 +413,14 @@ function App() {
                 disabled={isRequesting}
               >
                 {isRequesting ? 'Requesting…' : 'Request Random Number'}
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={handleRegisterEnclave}
+                disabled={isRegistering || !currentAccount}
+              >
+                {isRegistering ? 'Registering…' : 'Register Enclave'}
               </button>
             </form>
           </section>
